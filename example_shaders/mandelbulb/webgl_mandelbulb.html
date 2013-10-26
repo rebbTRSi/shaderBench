@@ -56,7 +56,7 @@
 				float r = 4.1;
 				float qtime = sin (time)*.4;
 
-				float Power =6.0;
+				float Power =8.0;
 
 				float marched = 0.0;
 				float scale = .0;
@@ -71,57 +71,58 @@
 				{
 				return vec2(cos(t)*k.x-sin(t)*k.y,sin(t)*k.x+cos(t)*k.y);
 				}
-				
+
 				float sphere( vec3 pos){
 				vec3 z = pos;
-				z.xyz = clamp(pos.xyz, -1.0, 1.0) * 2.0 - pos.xyz;  // min;max;mad
-				 float r2 = dot(z.xyz, z.xyz);
-					z += clamp(max(0.2/r2, 0.2), 0.0, 1.0);  // dp3,div,max.sat,mul
+	
 				float dr = 2.0;
 				float r = 0.0;
-					for (int i = 0; i < 15 ; i++) {
-						r = length(z);
-						if (r>2.0) break;
+	
+					for (int i = 0; i < 125 ; i++) {
+					r = length(z);
+					if (r>2.0) break;
 		
-						// convert to polar coordinates
-						float theta = acos( z.z/r );
-						float phi = atan( z.y,z.x );
-						dr =  pow( r, Power-1.0)*Power*dr + 1.0;
+					// convert to polar coordinates
+					float theta = acos( z.z/r );
+					float phi = atan( z.y,z.x );
+					dr =  pow( r, Power-1.0)*Power*dr + 1.0;
 		
-						// scale and rotate the point
-						float zr = pow( r,Power);
-						theta = theta*Power;
-						phi = phi*Power+time;
+					// scale and rotate the point
+					float zr = pow( r,Power);
+					theta = theta*Power;
+					phi = phi*Power;
 		
-						// convert back to cartesian coordinates
-						z = (vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta))*zr);
-						z+=pos;
-												}
-					return 0.5*log(r)*r/dr;
+					// convert back to cartesian coordinates
+					z = (vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta))*zr);
+					z+=pos;
 					}
-				
-					float rm(vec3 origin, vec3 ray) {
-					float distance_marched = min_distance;
+				return 0.5*log(r)*r/dr;
+				}
 
-						for (int i=0; i<250; i++) {		
-						float step_distance = sphere(origin + ray*distance_marched);
-							if (abs(step_distance) < 0.0008 ) {
-							return distance_marched/(max_distance-min_distance);
-															 }
-						distance_marched += step_distance;
-						marched = distance_marched;
-							if (distance_marched > max_distance) {
-							return -1.0;
-																 }
-												  }		
-					return -1.0;
+				float rm(vec3 origin, vec3 ray) {
+				float distance_marched = min_distance;
+
+					for (int i=0; i<150; i++) {
+					float step_distance = sphere(origin + ray*distance_marched);
+					if (abs(step_distance) < 0.001 ) {
+					return distance_marched/(max_distance-min_distance);
 					}
+				distance_marched += step_distance;
+				marched = distance_marched;
+				if (distance_marched > max_distance) {
+				return -1.0;
+					}
+				}
+				return -1.0;
+				}
+
+					
 
 					vec3 render(vec2 q) {
-					vec3 eye = vec3(0.0,.2, -3.0 + qtime/ 2.0 );
+					vec3 eye = vec3(0.0, .2, -3.0 + qtime/ 2.0 );
 					vec3 screen = vec3(q,1.0);
 					vec3 ray = normalize(screen - eye);
-					ray.yz=rotate(ray.yz,PI*0.5*sin(PI*qtime*0.125));		// rotation x
+					ray.yz=rotate(ray.yz,PI*0.01*sin(speed*0.525));	// rotation x
 					ray.zx=rotate(ray.zx,-PI*qtime*0.25);				// rotation y
 					ray.xy=rotate(ray.xy,speed*PI*0.8);					// rotation z
 
@@ -131,16 +132,19 @@
 					
 					float s = rm(eye, ray);
 					vec3 col;
-						if (s == -1.0) {
-						col =  vec3(1.0);
-									   } else {
 	
-												col = vec3(s-.8*.8+0.4*q.y *q.x)*marched/4.76;
-												col.rg *= marched*.6;
-											  }
+					if (s == -1.0) {
+					col =  vec3(1.0);
+
+					} else {
+	
+					col = vec3(s-.8*.8+0.4*q.y *sin(q.x))*marched/1.76;
+					col.rg *= marched*.4;
+					}
 	
 					return col;
 					}
+
 				
 					void main() {
 					{
