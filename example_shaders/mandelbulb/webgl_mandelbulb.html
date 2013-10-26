@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl </title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #ffffff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				font-weight: bold;
+
+				background-color: #000000;
+				margin: 0px;
+				overflow: hidden;
+			}
+		
+			#canvas1 {
+				color: #fff;
+				position: absolute;
+				height: 100%; width: 100%;
+				padding: 5px;
+				z-index:-10;
+			}
+
+		</style>
+	</head>
+
+			
+		<script src="Three.js"></script>
+
+		<script src="Detector.js"></script>
+		<script src="stats.min.js"></script>
+
+		<script type="x-shader/x-vertex" id="vertexshader">
+			
+			varying vec2 vUv;
+			void main()	{
+				vUv = uv;
+				
+				gl_Position = vec4( position, 1.0 );
+
+			}
+		</script>
+
+		<script type="x-shader/x-fragment" id="fragmentshader">
+				 
+			 varying vec2 vUv;
+				 uniform float time;
+				 uniform vec2 resolution;
+			
+				const float PI=3.14159265358979323846;
+				float speed=time*0.2975;
+				float r = 4.1;
+				float qtime = sin (time)*.4;
+
+				float Power =6.0;
+
+				float marched = 0.0;
+				float scale = .0;
+				float min_distance = 1.0;
+				float max_distance = 3.2;
+				float glitter = 11.2;
+				float utime = time / 2.0;
+				float an= sin(utime)*3.14157;
+				float h=0.7;
+
+				vec2 rotate(vec2 k,float t)
+				{
+				return vec2(cos(t)*k.x-sin(t)*k.y,sin(t)*k.x+cos(t)*k.y);
+				}
+				
+				float sphere( vec3 pos){
+				vec3 z = pos;
+				z.xyz = clamp(pos.xyz, -1.0, 1.0) * 2.0 - pos.xyz;  // min;max;mad
+				 float r2 = dot(z.xyz, z.xyz);
+					z += clamp(max(0.2/r2, 0.2), 0.0, 1.0);  // dp3,div,max.sat,mul
+				float dr = 2.0;
+				float r = 0.0;
+					for (int i = 0; i < 15 ; i++) {
+						r = length(z);
+						if (r>2.0) break;
+		
+						// convert to polar coordinates
+						float theta = acos( z.z/r );
+						float phi = atan( z.y,z.x );
+						dr =  pow( r, Power-1.0)*Power*dr + 1.0;
+		
+						// scale and rotate the point
+						float zr = pow( r,Power);
+						theta = theta*Power;
+						phi = phi*Power+time;
+		
+						// convert back to cartesian coordinates
+						z = (vec3(sin(theta)*cos(phi), sin(phi)*sin(theta), cos(theta))*zr);
+						z+=pos;
+												}
+					return 0.5*log(r)*r/dr;
+					}
+				
+					float rm(vec3 origin, vec3 ray) {
+					float distance_marched = min_distance;
+
+						for (int i=0; i<250; i++) {		
+						float step_distance = sphere(origin + ray*distance_marched);
+							if (abs(step_distance) < 0.0008 ) {
+							return distance_marched/(max_distance-min_distance);
+															 }
+						distance_marched += step_distance;
+						marched = distance_marched;
+							if (distance_marched > max_distance) {
+							return -1.0;
+																 }
+												  }		
+					return -1.0;
+					}
+
+					vec3 render(vec2 q) {
+					vec3 eye = vec3(0.0,.2, -3.0 + qtime/ 2.0 );
+					vec3 screen = vec3(q,1.0);
+					vec3 ray = normalize(screen - eye);
+					ray.yz=rotate(ray.yz,PI*0.5*sin(PI*qtime*0.125));		// rotation x
+					ray.zx=rotate(ray.zx,-PI*qtime*0.25);				// rotation y
+					ray.xy=rotate(ray.xy,speed*PI*0.8);					// rotation z
+
+					eye.yz=rotate(eye.yz,PI*0.5*sin(PI*qtime*0.125));		// rotation x
+					eye.zx=rotate(eye.zx,-PI*qtime*0.25);				// rotation y
+					eye.xy=rotate(eye.xy,speed*PI*0.8);					// rotation z
+					
+					float s = rm(eye, ray);
+					vec3 col;
+						if (s == -1.0) {
+						col =  vec3(1.0);
+									   } else {
+	
+												col = vec3(s-.8*.8+0.4*q.y *q.x)*marched/4.76;
+												col.rg *= marched*.6;
+											  }
+	
+					return col;
+					}
+				
+					void main() {
+					{
+						vec2 q =  (vUv.xy*4.0)-2.0 ;
+
+	
+					vec3 col = render(q);
+					q.x=col.x;
+					q.y=col.y;	
+					gl_FragColor = vec4(col,1.0); 	
+					}
+					}
+		
+		</script>
+
+
+		<script>
+
+		function startup() {
+		
+		if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+		var renderer, scene, camera, stats;
+
+		var sphere, uniforms, attributes;
+
+		var noise = [];
+
+				init();
+		animate();
+
+		function init() {
+
+			camera = new THREE.PerspectiveCamera( 30, window.innerWidth/window.innerHeight, 1, 10000 );
+			camera.position.z = 70;
+
+			scene = new THREE.Scene();
+				start_time = Date.now();
+	uniforms = {
+					time: { type: "f", value: 1.0 },
+					resolution: { type: "v2", value: new THREE.Vector2() }
+				};
+				
+				material = new THREE.ShaderMaterial( {
+
+					uniforms: uniforms,
+					vertexShader: document.getElementById( 'vertexshader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentshader' ).textContent
+
+				} );
+
+				mesh = new THREE.Mesh( new THREE.PlaneGeometry( 2, 2 ), material );
+				scene.add( mesh );
+
+			var canvas1 = document.getElementById('canvas1') ;
+
+			renderer = new THREE.WebGLRenderer( { canvas: canvas1 } );
+			renderer.setSize( 800, 600 );
+			renderer.autoClear = false;
+			 onWindowResize();
+			 
+			 stats = new Stats();
+			 stats.domElement.style.position = 'absolute';
+			stats.domElement.style.top = '0px';
+			document.body.appendChild( stats.domElement );
+			window.addEventListener( 'resize', onWindowResize, false );
+		}
+
+		function onWindowResize() {
+			camera.aspect = window.innerWidth / window.innerHeight;
+			camera.updateProjectionMatrix();
+	//		renderer.setSize( window.innerWidth, window.innerHeight );
+		}
+
+		function animate() {
+			requestAnimationFrame( animate );
+			render();
+			stats.update();
+
+		}
+		function render() {
+			uniforms.time.value += 0.01;
+			renderer.render( scene, camera );
+		}
+}
+	</script>
+<body onload="startup();">	
+<canvas id='canvas1' style="  left: 0; top: 0; z-index: -10; background-color: #000000; "></canvas>
+</body>
+
+</html>
